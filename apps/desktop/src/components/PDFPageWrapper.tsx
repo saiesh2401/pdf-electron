@@ -10,6 +10,8 @@ interface PDFPageWrapperProps {
     mode: 'none' | 'text' | 'ink';
     onAddAnnotation: (ann: Annotation) => void;
     onUpdateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+    currentFontSize?: number;
+    currentColor?: string;
 }
 
 export const PDFPageWrapper = ({
@@ -17,7 +19,9 @@ export const PDFPageWrapper = ({
     annotations,
     mode,
     onAddAnnotation,
-    onUpdateAnnotation
+    onUpdateAnnotation,
+    currentFontSize,
+    currentColor
 }: PDFPageWrapperProps) => {
     const [viewport, setViewport] = useState<PageViewport | null>(null);
 
@@ -50,6 +54,8 @@ export const PDFPageWrapper = ({
                     mode={mode}
                     onAdd={onAddAnnotation}
                     onUpdate={onUpdateAnnotation}
+                    currentFontSize={currentFontSize}
+                    currentColor={currentColor}
                 />
             )}
         </div>

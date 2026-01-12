@@ -12,6 +12,8 @@ interface PDFViewerProps {
     mode: 'none' | 'text' | 'ink';
     onAddAnnotation: (ann: Annotation) => void;
     onUpdateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+    currentFontSize?: number;
+    currentColor?: string;
 }
 
 export const PDFViewer = ({
@@ -19,7 +21,9 @@ export const PDFViewer = ({
     annotations,
     mode,
     onAddAnnotation,
-    onUpdateAnnotation
+    onUpdateAnnotation,
+    currentFontSize,
+    currentColor
 }: PDFViewerProps) => {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [loadError, setLoadError] = useState<Error | null>(null);
@@ -64,6 +68,8 @@ export const PDFViewer = ({
                         mode={mode}
                         onAddAnnotation={onAddAnnotation}
                         onUpdateAnnotation={onUpdateAnnotation}
+                        currentFontSize={currentFontSize}
+                        currentColor={currentColor}
                     />
                 ))}
             </Document>

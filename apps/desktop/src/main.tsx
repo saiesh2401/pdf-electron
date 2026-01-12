@@ -19,20 +19,24 @@ const ProtectedLayout = () => {
     return <Outlet />;
 };
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <AuthProvider>
-            <HashRouter>
-                <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+        <ErrorBoundary>
+            <AuthProvider>
+                <HashRouter>
+                    <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/register" element={<RegisterPage />} />
 
-                    <Route element={<ProtectedLayout />}>
-                        <Route path="/" element={<DashboardPage />} />
-                        <Route path="/editor/:draftId" element={<EditorPage />} />
-                    </Route>
-                </Routes>
-            </HashRouter>
-        </AuthProvider>
+                        <Route element={<ProtectedLayout />}>
+                            <Route path="/" element={<DashboardPage />} />
+                            <Route path="/editor/:draftId" element={<EditorPage />} />
+                        </Route>
+                    </Routes>
+                </HashRouter>
+            </AuthProvider>
+        </ErrorBoundary>
     </React.StrictMode>,
 )

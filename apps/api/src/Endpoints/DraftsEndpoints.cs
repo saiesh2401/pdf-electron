@@ -162,6 +162,60 @@ public static class DraftsEndpoints
 		.Produces(StatusCodes.Status200OK)
 		.Produces(StatusCodes.Status404NotFound);
 
+		// PUT /api/drafts/{id}
+		endpoints.MapPut("/api/drafts/{id:guid}", async (Guid id, UpdateDraftRequest req, ICurrentUserService currentUser, AppDbContext db, IHostEnvironment env) =>
+		{
+			var userId = currentUser.GetUserId();
+			var draft = await db.PdfDrafts.FirstOrDefaultAsync(d => d.Id == id && d.UserId == userId);
+
+			if (draft is null) return Results.NotFound();
+
+			// Update fields
+            if (req.FormData.HasValue)
+            {
+			    draft.FormDataJson = JsonSerializer.Serialize(req.FormData.Value);
+            }
+
+			if (req.Annotations.HasValue)
+			{
+				draft.AnnotationsJson = JsonSerializer.Serialize(req.Annotations.Value);
+			}
+
+			if (!string.IsNullOrWhiteSpace(req.DrawingDataUrl))
+			{
+				const string prefix = "data:image/png;base64,";
+				var dataUrl = req.DrawingDataUrl!;
+				var idx = dataUrl.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+				if (idx >= 0)
+				{
+					var b64 = dataUrl[(idx + prefix.Length)..];
+					try
+					{
+						var bytes = Convert.FromBase64String(b64);
+						var imagesRoot = Path.Combine(Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "storage")), "images", userId.ToString());
+						Directory.CreateDirectory(imagesRoot);
+						var drawingPath = Path.Combine(imagesRoot, $"{id}.png");
+						await File.WriteAllBytesAsync(drawingPath, bytes);
+						draft.DrawingImagePath = drawingPath;
+					}
+					catch
+					{
+						return Results.BadRequest(new { error = "Invalid drawingDataUrl base64 payload." });
+					}
+				}
+			}
+
+			draft.UpdatedAtUtc = DateTime.UtcNow;
+
+			await db.SaveChangesAsync();
+
+			return Results.NoContent();
+		})
+		.WithName("UpdateDraft")
+		.Produces(StatusCodes.Status204NoContent)
+		.Produces(StatusCodes.Status404NotFound)
+		.Produces(StatusCodes.Status400BadRequest);
+
         // POST /api/drafts/{id}/export
         endpoints.MapPost("/api/drafts/{id:guid}/export", async (Guid id, ICurrentUserService currentUser, AppDbContext db, IPdfExporter exporter, IHostEnvironment env) =>
         {

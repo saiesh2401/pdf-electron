@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PDFViewer } from '../components/PDFViewer';
 import { Annotation } from '../types';
 import { exportPdf } from '../utils/pdfExport';
-import { MousePointer2, Type, Pen, Download, Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { MousePointer2, Type, Pen, Download, Save, ArrowLeft, Loader2, Undo, Redo, Palette } from 'lucide-react';
 import { getDraft, saveDraft } from '../api/drafts';
 import { getTemplateFileUrl } from '../api/templates';
 import apiClient from '../api/client'; // Need to fetch blob with auth
@@ -19,6 +19,39 @@ export default function EditorPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [templateId, setTemplateId] = useState<string | null>(null);
 
+    // Style State
+    const [fontSize, setFontSize] = useState(12);
+    const [color, setColor] = useState('#ff0000'); // Default red used in your example
+
+    // Undo/Redo State
+    const [history, setHistory] = useState<Annotation[][]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+
+    // Helper to push state to history
+    const addToHistory = (newAnnotations: Annotation[]) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(newAnnotations);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+        setAnnotations(newAnnotations);
+    };
+
+    const handleUndo = () => {
+        if (historyIndex > 0) {
+            const prevIndex = historyIndex - 1;
+            setHistoryIndex(prevIndex);
+            setAnnotations(history[prevIndex]);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyIndex < history.length - 1) {
+            const nextIndex = historyIndex + 1;
+            setHistoryIndex(nextIndex);
+            setAnnotations(history[nextIndex]);
+        }
+    };
+
     // Load Draft Data
     useEffect(() => {
         if (!draftId) return;
@@ -29,7 +62,11 @@ export default function EditorPage() {
                 // 1. Fetch Draft Details
                 const draft = await getDraft(draftId);
                 setTemplateId(draft.templateId);
-                setAnnotations(draft.annotations || []);
+                const initialAnnotations = draft.annotations || [];
+                setAnnotations(initialAnnotations);
+                // Initialize history
+                setHistory([initialAnnotations]);
+                setHistoryIndex(0);
 
                 // 2. Fetch PDF File (using blob to handle auth if needed or just public url)
                 // For secure templates, we need to fetch blob with auth header
@@ -74,7 +111,7 @@ export default function EditorPage() {
             const pdfBytes = await file.arrayBuffer();
             const exportedPdf = await exportPdf(pdfBytes, annotations);
 
-            const blob = new Blob([exportedPdf], { type: 'application/pdf' });
+            const blob = new Blob([exportedPdf as unknown as BlobPart], { type: 'application/pdf' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -136,6 +173,45 @@ export default function EditorPage() {
                             <Pen size={20} />
                         </button>
                     </div>
+
+                    <div className="h-6 w-px bg-gray-600 mx-2"></div>
+
+                    {/* History Controls */}
+                    <div className="flex bg-gray-700 rounded-lg p-1">
+                        <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 text-gray-300 hover:text-white disabled:opacity-30">
+                            <Undo size={20} />
+                        </button>
+                        <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 text-gray-300 hover:text-white disabled:opacity-30">
+                            <Redo size={20} />
+                        </button>
+                    </div>
+
+                    <div className="h-6 w-px bg-gray-600 mx-2"></div>
+
+                    {/* Style Controls */}
+                    <div className="flex items-center space-x-2">
+                        <div className="bg-gray-700 rounded-lg px-2 py-1 flex items-center space-x-2">
+                            <span className="text-xs text-gray-400">Size</span>
+                            <input
+                                type="number"
+                                min="6"
+                                max="72"
+                                value={fontSize}
+                                onChange={(e) => setFontSize(Number(e.target.value))}
+                                className="w-12 bg-gray-600 text-white rounded px-1 text-sm border-none outline-none"
+                            />
+                        </div>
+                        <div className="bg-gray-700 rounded-lg p-1 flex items-center relative">
+                            <Palette size={20} className="text-gray-300 ml-1" />
+                            <input
+                                type="color"
+                                value={color}
+                                onChange={(e) => setColor(e.target.value)}
+                                className="w-8 h-8 opacity-0 absolute cursor-pointer"
+                            />
+                            <div className="w-6 h-6 rounded-full border border-gray-500 ml-2 shadow-sm" style={{ backgroundColor: color }}></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex items-center space-x-3">
@@ -162,8 +238,16 @@ export default function EditorPage() {
                     file={file}
                     mode={mode}
                     annotations={annotations}
-                    onUpdateAnnotation={(id, patch) => setAnnotations(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a))}
-                    onAddAnnotation={(ann) => setAnnotations(prev => [...prev, ann])}
+                    onUpdateAnnotation={(id, patch) => {
+                        const newAnns = annotations.map(a => a.id === id ? { ...a, ...patch } : a);
+                        addToHistory(newAnns);
+                    }}
+                    onAddAnnotation={(ann) => {
+                        const newAnns = [...annotations, ann];
+                        addToHistory(newAnns);
+                    }}
+                    currentFontSize={fontSize}
+                    currentColor={color}
                 />
             </div>
         </div>

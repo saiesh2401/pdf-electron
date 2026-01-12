@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PageViewport } from 'pdfjs-dist';
 import { Annotation, Point } from '../types';
 import { pdfToViewport, viewportToPdf } from '../utils/pdfCoords';
@@ -11,6 +11,8 @@ interface AnnotationLayerProps {
     mode: 'none' | 'text' | 'ink';
     onAdd: (ann: Annotation) => void;
     onUpdate: (id: string, patch: Partial<Annotation>) => void;
+    currentFontSize?: number;
+    currentColor?: string;
 }
 
 export const AnnotationLayer = ({
@@ -19,8 +21,11 @@ export const AnnotationLayer = ({
     annotations,
     mode,
     onAdd,
-    onUpdate
+    onUpdate,
+    currentFontSize = 12,
+    currentColor = '#000000'
 }: AnnotationLayerProps) => {
+    const layerRef = useRef<HTMLDivElement>(null);
 
     // Drag State
     const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -33,7 +38,8 @@ export const AnnotationLayer = ({
     const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
 
     const getPoint = (e: React.MouseEvent): Point => {
-        const rect = e.currentTarget.getBoundingClientRect();
+        if (!layerRef.current) return { x: 0, y: 0 };
+        const rect = layerRef.current.getBoundingClientRect();
         return {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top
@@ -85,7 +91,7 @@ export const AnnotationLayer = ({
                 xPt: 0,
                 yPt: 0,
                 strokes: [strokePts],
-                color: 'red',
+                color: currentColor, // Use selected color
                 thicknessPt: 2,
             };
             onAdd(newAnn);
@@ -109,9 +115,10 @@ export const AnnotationLayer = ({
                 xPt,
                 yPt,
                 text: 'Double click to edit',
-                fontSizePt: 12,
+                fontSizePt: currentFontSize, // Use selected font size
                 widthPt: 150,
                 heightPt: 20,
+                color: currentColor, // Use selected color
             };
             onAdd(newAnn);
         }
@@ -128,6 +135,7 @@ export const AnnotationLayer = ({
 
     return (
         <div
+            ref={layerRef}
             className="annotation-layer"
             style={{
                 position: 'absolute',
